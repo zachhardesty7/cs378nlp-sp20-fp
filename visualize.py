@@ -1,7 +1,6 @@
 """Prints QA examples.
 
 Author:
-    Shrey Desai and Yasumasa Onoe
 """
 
 import argparse
@@ -20,42 +19,42 @@ TEXT_WRAPPER = textwrap.TextWrapper(width=DOC_WIDTH)
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    '--path',
+    "--path",
     type=str,
-    default='datasets/squad_dev.jsonl.gz',
+    default="datasets/squad_dev.jsonl.gz",
     required=False,
-    help='path to display samples from',
+    help="path to display samples from",
 )
 parser.add_argument(
-    '--samples',
+    "--samples",
     type=int,
     default=10,
     required=False,
-    help='number of samples to visualize',
+    help="number of samples to visualize",
 )
 parser.add_argument(
-    '--shuffle',
-    action='store_true',
-    help='whether to shuffle samples before displaying',
+    "--shuffle",
+    action="store_true",
+    help="whether to shuffle samples before displaying",
 )
 parser.add_argument(
-    '--max_context_length',
+    "--max_context_length",
     type=int,
     default=384,
-    help='maximum context length (do not change!)',
+    help="maximum context length (do not change!)",
 )
 parser.add_argument(
-    '--max_question_length',
+    "--max_question_length",
     type=int,
     default=64,
-    help='maximum question length (do not change!)',
+    help="maximum question length (do not change!)",
 )
 
 
 def _build_string(tokens):
     """Builds string from token list."""
 
-    return ' '.join(tokens)
+    return " ".join(tokens)
 
 
 def _color_context(context, answer_start, answer_end):
@@ -66,18 +65,16 @@ def _color_context(context, answer_start, answer_end):
     i = 0
     while i < len(context):
         if i == answer_start:
-            span = _build_string(context[answer_start:(answer_end + 1)])
-            tokens.append(
-                colored(span, 'red', attrs=['bold', 'underline']),
-            )
+            span = _build_string(context[answer_start : (answer_end + 1)])
+            tokens.append(colored(span, "red", attrs=["bold", "underline"]),)
             i = answer_end + 1
         else:
             tokens.append(context[i])
             i += 1
 
-    lines = TEXT_WRAPPER.wrap(text=' '.join(tokens))
+    lines = TEXT_WRAPPER.wrap(text=" ".join(tokens))
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def main(args):
@@ -89,34 +86,34 @@ def main(args):
     if args.shuffle:
         random.shuffle(samples)
 
-    vis_samples = samples[:args.samples]
+    vis_samples = samples[: args.samples]
 
     print()
-    print('-' * RULE_LENGTH)
+    print("-" * RULE_LENGTH)
     print()
 
     # Visualize samples.
     for (qid, context, question, answer_start, answer_end) in vis_samples:
-        print('[METADATA]')
-        print(f'path = \'{args.path}\'')
-        print(f'question id = {qid}')
+        print("[METADATA]")
+        print(f"path = '{args.path}'")
+        print(f"question id = {qid}")
         print()
 
-        print('[CONTEXT]')
+        print("[CONTEXT]")
         print(_color_context(context, answer_start, answer_end))
         print()
 
-        print('[QUESTION]')
+        print("[QUESTION]")
         print(_build_string(question))
         print()
 
-        print('[ANSWER]')
-        print(_build_string(context[answer_start:(answer_end + 1)]))
+        print("[ANSWER]")
+        print(_build_string(context[answer_start : (answer_end + 1)]))
         print()
 
-        print('-' * RULE_LENGTH)
+        print("-" * RULE_LENGTH)
         print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(parser.parse_args())

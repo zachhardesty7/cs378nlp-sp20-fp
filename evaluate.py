@@ -34,14 +34,14 @@ def normalize_answer(s):
     """
 
     def remove_articles(text):
-        return re.sub(r'\b(a|an|the)\b', ' ', text)
+        return re.sub(r"\b(a|an|the)\b", " ", text)
 
     def white_space_fix(text):
-        return ' '.join(text.split())
+        return " ".join(text.split())
 
     def remove_punc(text):
         exclude = set(string.punctuation)
-        return ''.join(ch for ch in text if ch not in exclude)
+        return "".join(ch for ch in text if ch not in exclude)
 
     def lower(text):
         return text.lower()
@@ -81,7 +81,7 @@ def exact_match_score(prediction, ground_truth):
     Returns:
         EM score.
     """
-    return (normalize_answer(prediction) == normalize_answer(ground_truth))
+    return normalize_answer(prediction) == normalize_answer(ground_truth)
 
 
 def metric_max_over_ground_truths(metric_fn, prediction, ground_truths):
@@ -118,7 +118,7 @@ def read_predictions(prediction_file):
     with open(prediction_file) as f:
         for line in f:
             example = json.loads(line)
-            predictions[example['qid']] = example['answer']
+            predictions[example["qid"]] = example["answer"]
     return predictions
 
 
@@ -133,13 +133,13 @@ def read_answers(gold_file):
         True dict mapping question id (id) to answer span(s).
     """
     answers = {}
-    with gzip.open(gold_file, 'rb') as f:
+    with gzip.open(gold_file, "rb") as f:
         for i, line in enumerate(f):
             example = json.loads(line)
-            if i == 0 and 'header' in example:
+            if i == 0 and "header" in example:
                 continue
-            for qa in example['qas']:
-                answers[qa['qid']] = qa['answers']
+            for qa in example["qas"]:
+                answers[qa["qid"]] = qa["answers"]
     return answers
 
 
@@ -159,28 +159,28 @@ def evaluate(answers, predictions, skip_no_answer=False):
     for qid, ground_truths in answers.items():
         if qid not in predictions:
             if not skip_no_answer:
-                message = 'Unanswered question %s will receive score 0.' % qid
+                message = "Unanswered question %s will receive score 0." % qid
                 print(message)
                 total += 1
             continue
         total += 1
         prediction = predictions[qid]
         exact_match += metric_max_over_ground_truths(
-            exact_match_score, prediction, ground_truths)
-        f1 += metric_max_over_ground_truths(
-            f1_score, prediction, ground_truths)
+            exact_match_score, prediction, ground_truths
+        )
+        f1 += metric_max_over_ground_truths(f1_score, prediction, ground_truths)
 
     exact_match = round(100.0 * exact_match / total, 2)
     f1 = round(100.0 * f1 / total, 2)
 
-    return {'EM': exact_match, 'F1': f1}
+    return {"EM": exact_match, "F1": f1}
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_path', type=str, help='path to evaluation dataset')
-    parser.add_argument('--output_path', type=str, help='path to output predictions')
-    parser.add_argument('--skip_no_answer', action='store_true')
+    parser.add_argument("--dataset_path", type=str, help="path to evaluation dataset")
+    parser.add_argument("--output_path", type=str, help="path to output predictions")
+    parser.add_argument("--skip_no_answer", action="store_true")
     args = parser.parse_args()
 
     answers = read_answers(args.dataset_path)

@@ -2,5 +2,7 @@
 __pycache__/
 datasets/
 venv/
+.venv/
 *.pt
 *.jsonl.gz
+glove

@@ -25,7 +25,6 @@ import pprint
 import json
 
 import torch
-import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -39,159 +38,109 @@ from utils import cuda, search_span_endpoints, unpack
 
 _TQDM_BAR_SIZE = 75
 _TQDM_LEAVE = False
-_TQDM_UNIT = ' batches'
-_TQDM_OPTIONS = {
-    'ncols': _TQDM_BAR_SIZE, 'leave': _TQDM_LEAVE, 'unit': _TQDM_UNIT
-}
+_TQDM_UNIT = " batches"
+_TQDM_OPTIONS = {"nCols": _TQDM_BAR_SIZE, "leave": _TQDM_LEAVE, "unit": _TQDM_UNIT}
 
 
 parser = argparse.ArgumentParser()
 
 # Training arguments.
-parser.add_argument('--device', type=int)
+parser.add_argument("--device", type=int)
 parser.add_argument(
-    '--use_gpu',
-    action='store_true',
-    help='whether to use GPU',
+    "--use_gpu", action="store_true", help="whether to use GPU",
 )
 parser.add_argument(
-    '--model',
+    "--model", type=str, required=True, choices=["baseline"], help="which model to use",
+)
+parser.add_argument(
+    "--model_path", type=str, required=True, help="path to load/save model checkpoints",
+)
+parser.add_argument(
+    "--embedding_path",
     type=str,
-    required=True,
-    choices=['baseline'],
-    help='which model to use',
+    default="glove/glove.6B.300d.txt",
+    help="GloVe embedding path",
 )
 parser.add_argument(
-    '--model_path',
-    type=str,
-    required=True,
-    help='path to load/save model checkpoints',
+    "--train_path", type=str, required=True, help="training dataset path",
 )
 parser.add_argument(
-    '--embedding_path',
-    type=str,
-    default='glove/glove.6B.300d.txt',
-    help='GloVe embedding path',
+    "--dev_path", type=str, required=True, help="dev dataset path",
 )
 parser.add_argument(
-    '--train_path',
-    type=str,
-    required=True,
-    help='training dataset path',
-)
-parser.add_argument(
-    '--dev_path',
-    type=str,
-    required=True,
-    help='dev dataset path',
-)
-parser.add_argument(
-    '--max_context_length',
+    "--max_context_length",
     type=int,
     default=384,
-    help='maximum context length (do not change!)',
+    help="maximum context length (do not change!)",
 )
 parser.add_argument(
-    '--max_question_length',
+    "--max_question_length",
     type=int,
     default=64,
-    help='maximum question length (do not change!)',
+    help="maximum question length (do not change!)",
 )
 parser.add_argument(
-    '--output_path',
-    type=str,
-    required=False,
-    help='predictions output path',
+    "--output_path", type=str, required=False, help="predictions output path",
 )
 parser.add_argument(
-    '--shuffle_examples',
-    action='store_true',
-    help='shuffle training example at the beginning of each epoch',
+    "--shuffle_examples",
+    action="store_true",
+    help="shuffle training example at the beginning of each epoch",
 )
 
 # Optimization arguments.
 parser.add_argument(
-    '--epochs',
-    type=int,
-    default=10,
-    help='number of training epochs',
+    "--epochs", type=int, default=10, help="number of training epochs",
 )
 parser.add_argument(
-    '--batch_size',
-    type=int,
-    default=64,
-    help='training and evaluation batch size',
+    "--batch_size", type=int, default=64, help="training and evaluation batch size",
 )
 parser.add_argument(
-    '--learning_rate',
-    type=float,
-    default=1e-3,
-    help='training learning rate',
+    "--learning_rate", type=float, default=1e-3, help="training learning rate",
 )
 parser.add_argument(
-    '--weight_decay',
-    type=float,
-    default=0.,
-    help='training weight decay',
+    "--weight_decay", type=float, default=0.0, help="training weight decay",
 )
 parser.add_argument(
-    '--grad_clip',
-    type=float,
-    default=0.5,
-    help='gradient norm clipping value',
+    "--grad_clip", type=float, default=0.5, help="gradient norm clipping value",
 )
 parser.add_argument(
-    '--early_stop',
+    "--early_stop",
     type=int,
     default=3,
-    help='number of epochs to wait until early stopping',
+    help="number of epochs to wait until early stopping",
 )
 parser.add_argument(
-    '--do_train',
-    action='store_true',
-    help='flag to enable training',
+    "--do_train", action="store_true", help="flag to enable training",
 )
 parser.add_argument(
-    '--do_test',
-    action='store_true',
-    help='flag to enable testing',
+    "--do_test", action="store_true", help="flag to enable testing",
 )
 
 # Model arguments.
 parser.add_argument(
-    '--vocab_size',
+    "--vocab_size",
     type=int,
     default=50000,
-    help='vocabulary size (dynamically set, do not change!)',
+    help="vocabulary size (dynamically set, do not change!)",
 )
 parser.add_argument(
-    '--embedding_dim',
-    type=int,
-    default=300,
-    help='embedding dimension',
+    "--embedding_dim", type=int, default=300, help="embedding dimension",
 )
 parser.add_argument(
-    '--hidden_dim',
-    type=int,
-    default=256,
-    help='hidden state dimension',
+    "--hidden_dim", type=int, default=256, help="hidden state dimension",
 )
 parser.add_argument(
-    '--rnn_cell_type',
-    choices=['lstm', 'gru'],
-    default='lstm',
-    help='Type of RNN cell',
+    "--rnn_cell_type", choices=["lstm", "gru"], default="lstm", help="Type of RNN cell",
 )
 parser.add_argument(
-    '--bidirectional',
-    action='store_true',
-    help='use bidirectional RNN',
+    "--bidirectional", action="store_true", help="use bidirectional RNN",
 )
 parser.add_argument(
-    '--dropout',
+    "--dropout",
     type=float,
-    default=0.,
-    help='dropout on passage and question vectors',
+    default=0.0,
+    help="dropout on passage and question vectors",
 )
 
 
@@ -218,17 +167,17 @@ def _select_model(args):
     Returns:
         Instance of a PyTorch model supplied with args.
     """
-    if args.model == 'baseline':
+    if args.model == "baseline":
         return BaselineReader(args)
     else:
-        raise RuntimeError(f'model \'{args.model}\' not recognized!')
+        raise RuntimeError(f"model '{args.model}' not recognized!")
 
 
 def _early_stop(args, eval_history):
     """
     Determines early stopping conditions. If the evaluation loss has
     not improved after `args.early_stop` epoch(s), then training
-    is ended prematurely. 
+    is ended prematurely.
 
     Args:
         args: `argparse` object.
@@ -239,15 +188,12 @@ def _early_stop(args, eval_history):
     Returns:
         Boolean indicating whether training should stop.
     """
-    return (
-        len(eval_history) > args.early_stop
-        and not any(eval_history[-args.early_stop:])
+    return len(eval_history) > args.early_stop and not any(
+        eval_history[-args.early_stop :]
     )
 
 
-def _calculate_loss(
-    start_logits, end_logits, start_positions, end_positions
-):
+def _calculate_loss(start_logits, end_logits, start_positions, end_positions):
     """
     Calculates cross-entropy loss for QA samples, which is defined as
     the mean of the loss values incurred by the starting and ending position
@@ -260,7 +206,7 @@ def _calculate_loss(
         end_positions: Gold end positions.
 
     Returns:
-        Loss value for a batch of sasmples.
+        Loss value for a batch of samples.
     """
     # If the gold span is outside the scope of the maximum
     # context length, then ignore these indices when computing the loss.
@@ -273,7 +219,7 @@ def _calculate_loss(
     start_loss = criterion(start_logits, start_positions)
     end_loss = criterion(end_logits, end_positions)
 
-    return (start_loss + end_loss) / 2.
+    return (start_loss + end_loss) / 2.0
 
 
 def train(args, epoch, model, dataset):
@@ -293,21 +239,18 @@ def train(args, epoch, model, dataset):
     model.train()
 
     # Cumulative loss and steps.
-    train_loss = 0.
+    train_loss = 0.0
     train_steps = 0
 
     # Set up optimizer.
     optimizer = optim.Adam(
-        model.parameters(),
-        lr=args.learning_rate,
-        weight_decay=args.weight_decay,
+        model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay,
     )
 
     # Set up training dataloader. Creates `args.batch_size`-sized
     # batches from available samples.
     train_dataloader = tqdm(
-        dataset.get_batch(shuffle_examples=args.shuffle_examples),
-        **_TQDM_OPTIONS,
+        dataset.get_batch(shuffle_examples=args.shuffle_examples), **_TQDM_OPTIONS,
     )
 
     for batch in train_dataloader:
@@ -317,13 +260,10 @@ def train(args, epoch, model, dataset):
         # Forward inputs, calculate loss, optimize model.
         start_logits, end_logits = model(batch)
         loss = _calculate_loss(
-            start_logits,
-            end_logits,
-            batch['start_positions'],
-            batch['end_positions'],
+            start_logits, end_logits, batch["start_positions"], batch["end_positions"],
         )
         loss.backward()
-        if args.grad_clip > 0.:
+        if args.grad_clip > 0.0:
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
         optimizer.step()
 
@@ -331,7 +271,7 @@ def train(args, epoch, model, dataset):
         train_loss += loss.item()
         train_steps += 1
         train_dataloader.set_description(
-            f'[train] epoch = {epoch}, loss = {train_loss / train_steps:.6f}'
+            f"[train] epoch = {epoch}, loss = {train_loss / train_steps:.6f}"
         )
 
     return train_loss / train_steps
@@ -354,15 +294,12 @@ def evaluate(args, epoch, model, dataset):
     model.eval()
 
     # Cumulative loss and steps.
-    eval_loss = 0.
+    eval_loss = 0.0
     eval_steps = 0
 
     # Set up evaluation dataloader. Creates `args.batch_size`-sized
     # batches from available samples. Does not shuffle.
-    eval_dataloader = tqdm(
-        dataset.get_batch(shuffle_examples=False),
-        **_TQDM_OPTIONS,
-    )
+    eval_dataloader = tqdm(dataset.get_batch(shuffle_examples=False), **_TQDM_OPTIONS,)
 
     with torch.no_grad():
         for batch in eval_dataloader:
@@ -371,15 +308,15 @@ def evaluate(args, epoch, model, dataset):
             loss = _calculate_loss(
                 start_logits,
                 end_logits,
-                batch['start_positions'],
-                batch['end_positions'],
+                batch["start_positions"],
+                batch["end_positions"],
             )
 
             # Update tqdm bar.
             eval_loss += loss.item()
             eval_steps += 1
             eval_dataloader.set_description(
-                f'[eval] epoch = {epoch}, loss = {eval_loss / eval_steps:.6f}'
+                f"[eval] epoch = {epoch}, loss = {eval_loss / eval_steps:.6f}"
             )
 
     return eval_loss / eval_steps
@@ -388,7 +325,7 @@ def evaluate(args, epoch, model, dataset):
 def write_predictions(args, model, dataset):
     """
     Writes model predictions to an output file. The official QA metrics (EM/F1)
-    can be computed using `evaluation.py`. 
+    can be computed using `evaluation.py`.
 
     Args:
         args: `argparse` object.
@@ -397,14 +334,11 @@ def write_predictions(args, model, dataset):
             official test datasets are blind and hosted by official servers).
     """
     # Load model checkpoint.
-    model.load_state_dict(torch.load(args.model_path, map_location='cpu'))
+    model.load_state_dict(torch.load(args.model_path, map_location="cpu"))
     model.eval()
 
     # Set up test dataloader.
-    test_dataloader = tqdm(
-        dataset.get_batch(shuffle_examples=False),
-        **_TQDM_OPTIONS,
-    )
+    test_dataloader = tqdm(dataset.get_batch(shuffle_examples=False), **_TQDM_OPTIONS,)
 
     # Output predictions.
     outputs = []
@@ -427,20 +361,18 @@ def write_predictions(args, model, dataset):
                 # (start, end) pair that has the highest joint probability.
                 start_probs = unpack(batch_start_probs[j])
                 end_probs = unpack(batch_end_probs[j])
-                start_index, end_index = search_span_endpoints(
-                        start_probs, end_probs
-                )
-                
+                start_index, end_index = search_span_endpoints(start_probs, end_probs)
+
                 # Grab predicted span.
-                pred_span = ' '.join(passage[start_index:(end_index + 1)])
+                pred_span = " ".join(passage[start_index : (end_index + 1)])
 
                 # Add prediction to outputs.
-                outputs.append({'qid': qid, 'answer': pred_span})
+                outputs.append({"qid": qid, "answer": pred_span})
 
     # Write predictions to output file.
-    with open(args.output_path, 'w+') as f:
+    with open(args.output_path, "w+") as f:
         for elem in outputs:
-            f.write(f'{json.dumps(elem)}\n')
+            f.write(f"{json.dumps(elem)}\n")
 
 
 def main(args):
@@ -451,13 +383,13 @@ def main(args):
         args: `argparse` object.
     """
     # Print arguments.
-    print('\nusing arguments:')
+    print("\nusing arguments:")
     _print_arguments(args)
     print()
 
     # Check if GPU is available.
     if not args.use_gpu and torch.cuda.is_available():
-        print('warning: GPU is available but args.use_gpu = False')
+        print("warning: GPU is available but args.use_gpu = False")
         print()
 
     # Set up datasets.
@@ -471,23 +403,21 @@ def main(args):
         dataset.register_tokenizer(tokenizer)
     args.vocab_size = len(vocabulary)
     args.pad_token_id = tokenizer.pad_token_id
-    print(f'vocab words = {len(vocabulary)}')
+    print(f"vocab words = {len(vocabulary)}")
 
     # Print number of samples.
-    print(f'train samples = {len(train_dataset)}')
-    print(f'dev samples = {len(dev_dataset)}')
+    print(f"train samples = {len(train_dataset)}")
+    print(f"dev samples = {len(dev_dataset)}")
     print()
 
     # Select model.
     model = _select_model(args)
-    num_pretrained = model.load_pretrained_embeddings(
-        vocabulary, args.embedding_path
-    )
-    pct_pretrained = round(num_pretrained / len(vocabulary) * 100., 2)
-    print(f'using pre-trained embeddings from \'{args.embedding_path}\'')
+    num_pretrained = model.load_pretrained_embeddings(vocabulary, args.embedding_path)
+    pct_pretrained = round(num_pretrained / len(vocabulary) * 100.0, 2)
+    print(f"using pre-trained embeddings from '{args.embedding_path}'")
     print(
-        f'initialized {num_pretrained}/{len(vocabulary)} '
-        f'embeddings ({pct_pretrained}%)'
+        f"initialized {num_pretrained}/{len(vocabulary)} "
+        f"embeddings ({pct_pretrained}%)"
     )
     print()
 
@@ -495,14 +425,14 @@ def main(args):
         model = cuda(args, model)
 
     params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f'using model \'{args.model}\' ({params} params)')
+    print(f"using model '{args.model}' ({params} params)")
     print(model)
     print()
 
     if args.do_train:
         # Track training statistics for checkpointing.
         eval_history = []
-        best_eval_loss = float('inf')
+        best_eval_loss = float("inf")
 
         # Begin training.
         for epoch in range(1, args.epochs + 1):
@@ -516,20 +446,20 @@ def main(args):
             if eval_loss < best_eval_loss:
                 best_eval_loss = eval_loss
                 torch.save(model.state_dict(), args.model_path)
-            
+
             print(
-                f'epoch = {epoch} | '
-                f'train loss = {train_loss:.6f} | '
-                f'eval loss = {eval_loss:.6f} | '
+                f"epoch = {epoch} | "
+                f"train loss = {train_loss:.6f} | "
+                f"eval loss = {eval_loss:.6f} | "
                 f"{'saving model!' if eval_history[-1] else ''}"
             )
 
             # If early stopping conditions are met, stop training.
             if _early_stop(args, eval_history):
-                suffix = 's' if args.early_stop > 1 else ''
+                suffix = "s" if args.early_stop > 1 else ""
                 print(
-                    f'no improvement after {args.early_stop} epoch{suffix}. '
-                    'early stopping...'
+                    f"no improvement after {args.early_stop} epoch{suffix}. "
+                    "early stopping..."
                 )
                 print()
                 break
@@ -539,15 +469,15 @@ def main(args):
         # below to obtain official EM/F1 metrics.
         write_predictions(args, model, dev_dataset)
         eval_cmd = (
-            'python3 evaluate.py '
-            f'--dataset_path {args.dev_path} '
-            f'--output_path {args.output_path}'
+            "python3 evaluate.py "
+            f"--dataset_path {args.dev_path} "
+            f"--output_path {args.output_path}"
         )
         print()
-        print(f'predictions written to \'{args.output_path}\'')
-        print(f'compute EM/F1 with: \'{eval_cmd}\'')
+        print(f"predictions written to '{args.output_path}'")
+        print(f"compute EM/F1 with: '{eval_cmd}'")
         print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(parser.parse_args())

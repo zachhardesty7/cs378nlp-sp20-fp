@@ -53,10 +53,10 @@ def load_dataset(path):
     Returns:
         Dataset metadata and samples.
     """
-    with gzip.open(path, 'rb') as f:
+    with gzip.open(path, "rb") as f:
         elems = [
             json.loads(l.rstrip())
-            for l in tqdm(f, desc=f'loading \'{path}\'', leave=False)
+            for l in tqdm(f, desc=f"loading '{path}'", leave=False)
         ]
     meta, samples = elems[0], elems[1:]
     return (meta, samples)
@@ -74,11 +74,11 @@ def load_cached_embeddings(path):
         Dictionary mapping words (strings) to vectors (list of floats).
     """
     bare_path = os.path.splitext(path)[0]
-    cached_path = f'{bare_path}.pkl'
+    cached_path = f"{bare_path}.pkl"
     if os.path.exists(cached_path):
-        return pickle.load(open(cached_path, 'rb'))
+        return pickle.load(open(cached_path, "rb"))
     embedding_map = load_embeddings(path)
-    pickle.dump(embedding_map, open(cached_path, 'wb'))
+    pickle.dump(embedding_map, open(cached_path, "wb"))
     return embedding_map
 
 
@@ -100,7 +100,7 @@ def load_embeddings(path):
             try:
                 pieces = line.rstrip().split()
                 embedding_map[pieces[0]] = [float(weight) for weight in pieces[1:]]
-            except:
+            except Exception:
                 pass
     return embedding_map
 
@@ -126,7 +126,7 @@ def search_span_endpoints(start_probs, end_probs, window=15):
     """
     max_start_index = start_probs.index(max(start_probs))
     max_end_index = -1
-    max_joint_prob = 0.
+    max_joint_prob = 0.0
 
     for end_index in range(len(end_probs)):
         if max_start_index <= end_index <= max_start_index + window:

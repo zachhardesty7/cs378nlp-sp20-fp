@@ -13,8 +13,8 @@ from random import shuffle
 from utils import cuda, load_dataset
 
 
-PAD_TOKEN = '[PAD]'
-UNK_TOKEN = '[UNK]'
+PAD_TOKEN = "[PAD]"
+UNK_TOKEN = "[UNK]"
 
 
 class Vocabulary:
@@ -34,6 +34,7 @@ class Vocabulary:
         encoding: A dictionary mapping words (string) to indices (int).
         decoding: A dictionary mapping indices (int) to words (string).
     """
+
     def __init__(self, samples, vocab_size):
         self.words = self._initialize(samples, vocab_size)
         self.encoding = {word: index for (index, word) in enumerate(self.words)}
@@ -58,12 +59,12 @@ class Vocabulary:
             for token in itertools.chain(passage, question):
                 vocab[token.lower()] += 1
         top_words = [
-            word for (word, _) in
-            sorted(vocab.items(), key=lambda x: x[1], reverse=True)
+            word
+            for (word, _) in sorted(vocab.items(), key=lambda x: x[1], reverse=True)
         ][:vocab_size]
         words = [PAD_TOKEN, UNK_TOKEN] + top_words
         return words
-    
+
     def __len__(self):
         return len(self.words)
 
@@ -84,6 +85,7 @@ class Tokenizer:
         pad_token_id: Index of `PAD_TOKEN` (int).
         unk_token_id: Index of `UNK_TOKEN` (int).
     """
+
     def __init__(self, vocabulary):
         self.vocabulary = vocabulary
         self.pad_token_id = self.vocabulary.encoding[PAD_TOKEN]
@@ -100,8 +102,7 @@ class Tokenizer:
             A list of indices (int).
         """
         return [
-            self.vocabulary.encoding.get(token, self.unk_token_id)
-            for token in tokens
+            self.vocabulary.encoding.get(token, self.unk_token_id) for token in tokens
         ]
 
     def convert_ids_to_tokens(self, token_ids):
@@ -115,8 +116,7 @@ class Tokenizer:
             A list of words (string).
         """
         return [
-            self.vocabulary.decoding.get(token_id, UNK_TOKEN)
-            for token_id in token_ids
+            self.vocabulary.decoding.get(token_id, UNK_TOKEN) for token_id in token_ids
         ]
 
 
@@ -137,14 +137,16 @@ class QADataset(Dataset):
         tokenizer: `Tokenizer` object.
         batch_size: Int. The number of example in a mini batch.
     """
+
     def __init__(self, args, path):
         self.args = args
         self.meta, self.elems = load_dataset(path)
         self.samples = self._create_samples()
         self.tokenizer = None
-        self.batch_size = args.batch_size if 'batch_size' in args else 1
-        self.pad_token_id = self.tokenizer.pad_token_id \
-            if self.tokenizer is not None else 0
+        self.batch_size = args.batch_size if "batch_size" in args else 1
+        self.pad_token_id = (
+            self.tokenizer.pad_token_id if self.tokenizer is not None else 0
+        )
 
     def _create_samples(self):
         """
@@ -157,27 +159,25 @@ class QADataset(Dataset):
         samples = []
         for elem in self.elems:
             # Unpack the context paragraph. Shorten to max sequence length.
-            passage = [
-                token.lower() for (token, offset) in elem['context_tokens']
-            ][:self.args.max_context_length]
+            passage = [token.lower() for (token, offset) in elem["context_tokens"]][
+                : self.args.max_context_length
+            ]
 
             # Each passage has several questions associated with it.
             # Additionally, each question has multiple possible answer spans.
-            for qa in elem['qas']:
-                qid = qa['qid']
-                question = [
-                    token.lower() for (token, offset) in qa['question_tokens']
-                ][:self.args.max_question_length]
+            for qa in elem["qas"]:
+                qid = qa["qid"]
+                question = [token.lower() for (token, offset) in qa["question_tokens"]][
+                    : self.args.max_question_length
+                ]
 
                 # Select the first answer span, which is formatted as
                 # (start_position, end_position), where the end_position
                 # is inclusive.
-                answers = qa['detected_answers']
-                answer_start, answer_end = answers[0]['token_spans'][0]
-                samples.append(
-                    (qid, passage, question, answer_start, answer_end)
-                )
-                
+                answers = qa["detected_answers"]
+                answer_start, answer_end = answers[0]["token_spans"][0]
+                samples.append((qid, passage, question, answer_start, answer_end))
+
         return samples
 
     def _create_data_generator(self, shuffle_examples=False):
@@ -193,7 +193,7 @@ class QADataset(Dataset):
             (Tuple of tensors)
         """
         if self.tokenizer is None:
-            raise RuntimeError('error: no tokenizer registered')
+            raise RuntimeError("error: no tokenizer registered")
 
         example_idxs = list(range(len(self.samples)))
         if shuffle_examples:
@@ -208,12 +208,8 @@ class QADataset(Dataset):
             qid, passage, question, answer_start, answer_end = self.samples[idx]
 
             # Convert words to tensor.
-            passage_ids = torch.tensor(
-                self.tokenizer.convert_tokens_to_ids(passage)
-            )
-            question_ids = torch.tensor(
-                self.tokenizer.convert_tokens_to_ids(question)
-            )
+            passage_ids = torch.tensor(self.tokenizer.convert_tokens_to_ids(passage))
+            question_ids = torch.tensor(self.tokenizer.convert_tokens_to_ids(question))
             answer_start_ids = torch.tensor(answer_start)
             answer_end_ids = torch.tensor(answer_end)
 
@@ -266,9 +262,7 @@ class QADataset(Dataset):
                 questions.append(current_batch[ii][1])
                 start_positions[ii] = current_batch[ii][2]
                 end_positions[ii] = current_batch[ii][3]
-                max_passage_length = max(
-                    max_passage_length, len(current_batch[ii][0])
-                )
+                max_passage_length = max(max_passage_length, len(current_batch[ii][0]))
                 max_question_length = max(
                     max_question_length, len(current_batch[ii][1])
                 )
@@ -280,15 +274,15 @@ class QADataset(Dataset):
             # Pad passages and questions
             for iii, passage_question in enumerate(zip(passages, questions)):
                 passage, question = passage_question
-                padded_passages[iii][:len(passage)] = passage
-                padded_questions[iii][:len(question)] = question
+                padded_passages[iii][: len(passage)] = passage
+                padded_questions[iii][: len(question)] = question
 
             # Create an input dictionary
             batch_dict = {
-                'passages': cuda(self.args, padded_passages).long(),
-                'questions': cuda(self.args, padded_questions).long(),
-                'start_positions': cuda(self.args, start_positions).long(),
-                'end_positions': cuda(self.args, end_positions).long()
+                "passages": cuda(self.args, padded_passages).long(),
+                "questions": cuda(self.args, padded_questions).long(),
+                "start_positions": cuda(self.args, start_positions).long(),
+                "end_positions": cuda(self.args, end_positions).long(),
             }
 
             if no_more_data:
@@ -310,7 +304,7 @@ class QADataset(Dataset):
         """
         return self._create_batches(
             self._create_data_generator(shuffle_examples=shuffle_examples),
-            self.batch_size
+            self.batch_size,
         )
 
     def register_tokenizer(self, tokenizer):
@@ -321,6 +315,6 @@ class QADataset(Dataset):
             tokenizer: If `True`, shuffle examples. Default: `False`
         """
         self.tokenizer = tokenizer
-    
+
     def __len__(self):
         return len(self.samples)

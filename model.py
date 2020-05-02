@@ -28,11 +28,17 @@ def _sort_batch_by_length(tensor, sequence_lengths):
         restoration_indices: Indices to recover the original order.
     """
     # Sort sequence lengths
-    sorted_sequence_lengths, permutation_index = sequence_lengths.sort(0, descending=True)
+    sorted_sequence_lengths, permutation_index = sequence_lengths.sort(
+        0, descending=True
+    )
     # Sort sequences
     sorted_tensor = tensor.index_select(0, permutation_index)
     # Find indices to recover the original order
-    index_range = sequence_lengths.data.clone().copy_(torch.arange(0, len(sequence_lengths))).long()
+    index_range = (
+        sequence_lengths.data.clone()
+        .copy_(torch.arange(0, len(sequence_lengths)))
+        .long()
+    )
     _, reverse_mapping = permutation_index.sort(0, descending=False)
     restoration_indices = index_range.index_select(0, reverse_mapping)
     return sorted_tensor, sorted_sequence_lengths, restoration_indices
@@ -59,6 +65,7 @@ class AlignedAttention(nn.Module):
     Returns:
         Attention scores over question sequences, [batch_size, p_len, q_len].
     """
+
     def __init__(self, p_dim):
         super().__init__()
         self.linear = nn.Linear(p_dim, p_dim)
@@ -72,7 +79,7 @@ class AlignedAttention(nn.Module):
         # Stack question mask p_len times
         q_mask = q_mask.unsqueeze(1).repeat(1, scores.size(1), 1)
         # Assign -inf to pad tokens
-        scores.data.masked_fill_(q_mask.data, -float('inf'))
+        scores.data.masked_fill_(q_mask.data, -float("inf"))
         # Normalize along question length
         return F.softmax(scores, 2)  # [batch_size, p_len, q_len]
 
@@ -92,6 +99,7 @@ class SpanAttention(nn.Module):
     Returns:
         Attention scores over sequence length, [batch_size, len].
     """
+
     def __init__(self, q_dim):
         super().__init__()
         self.linear = nn.Linear(q_dim, 1)
@@ -100,7 +108,7 @@ class SpanAttention(nn.Module):
         # Compute scores
         q_scores = self.linear(q).squeeze(2)  # [batch_size, len]
         # Assign -inf to pad tokens
-        q_scores.data.masked_fill_(q_mask.data, -float('inf'))
+        q_scores.data.masked_fill_(q_mask.data, -float("inf"))
         # Normalize along sequence length
         return F.softmax(q_scores, 1)  # [batch_size, len]
 
@@ -122,6 +130,7 @@ class BilinearOutput(nn.Module):
     Returns:
         Logits over the input sequence, [batch_size, p_len].
     """
+
     def __init__(self, p_dim, q_dim):
         super().__init__()
         self.linear = nn.Linear(q_dim, p_dim)
@@ -131,7 +140,7 @@ class BilinearOutput(nn.Module):
         q_key = self.linear(q).unsqueeze(2)  # [batch_size, p_dim, 1]
         p_scores = torch.bmm(p, q_key).squeeze(2)  # [batch_size, p_len]
         # Assign -inf to pad tokens
-        p_scores.data.masked_fill_(p_mask.data, -float('inf'))
+        p_scores.data.masked_fill_(p_mask.data, -float("inf"))
         return p_scores  # [batch_size, p_len]
 
 
@@ -167,6 +176,7 @@ class BaselineReader(nn.Module):
         Logits for start positions and logits for end positions.
         Tuple: ([batch_size, p_len], [batch_size, p_len])
     """
+
     def __init__(self, args):
         super().__init__()
 
@@ -179,7 +189,7 @@ class BaselineReader(nn.Module):
         # Initialize Context2Query (2)
         self.aligned_att = AlignedAttention(args.embedding_dim)
 
-        rnn_cell = nn.LSTM if args.rnn_cell_type == 'lstm' else nn.GRU
+        rnn_cell = nn.LSTM if args.rnn_cell_type == "lstm" else nn.GRU
 
         # Initialize passage encoder (3)
         self.passage_rnn = rnn_cell(
@@ -200,10 +210,7 @@ class BaselineReader(nn.Module):
         self.dropout = nn.Dropout(self.args.dropout)
 
         # Adjust hidden dimension if bidirectional RNNs are used
-        _hidden_dim = (
-            args.hidden_dim * 2 if args.bidirectional
-            else args.hidden_dim
-        )
+        _hidden_dim = args.hidden_dim * 2 if args.bidirectional else args.hidden_dim
 
         # Initialize attention layer for question attentive sum (5)
         self.question_att = SpanAttention(_hidden_dim)
@@ -226,9 +233,9 @@ class BaselineReader(nn.Module):
 
         # Create embedding matrix. By default, embeddings are randomly
         # initialized from Uniform(-0.1, 0.1).
-        embeddings = torch.zeros(
-            (len(vocabulary), self.args.embedding_dim)
-        ).uniform_(-0.1, 0.1)
+        embeddings = torch.zeros((len(vocabulary), self.args.embedding_dim)).uniform_(
+            -0.1, 0.1
+        )
 
         # Initialize pre-trained embeddings.
         num_pretrained = 0
@@ -255,14 +262,16 @@ class BaselineReader(nn.Module):
             All hidden states, [batch_size, len, hid].
         """
         # Sort input sequences
-        sorted_inputs, sorted_sequence_lengths, restoration_indices = _sort_batch_by_length(
-            sequences, sequence_lengths
-        )
+        (
+            sorted_inputs,
+            sorted_sequence_lengths,
+            restoration_indices,
+        ) = _sort_batch_by_length(sequences, sequence_lengths)
         # Pack input sequences
         packed_sequence_input = pack_padded_sequence(
             sorted_inputs,
             sorted_sequence_lengths.data.long().tolist(),
-            batch_first=True
+            batch_first=True,
         )
         # Run RNN
         packed_sequence_output, _ = rnn(packed_sequence_input, None)
@@ -275,24 +284,29 @@ class BaselineReader(nn.Module):
 
     def forward(self, batch):
         # Obtain masks and lengths for passage and question.
-        passage_mask = (batch['passages'] != self.pad_token_id)  # [batch_size, p_len]
-        question_mask = (batch['questions'] != self.pad_token_id)  # [batch_size, q_len]
+        passage_mask = batch["passages"] != self.pad_token_id  # [batch_size, p_len]
+        question_mask = batch["questions"] != self.pad_token_id  # [batch_size, q_len]
         passage_lengths = passage_mask.long().sum(-1)  # [batch_size]
         question_lengths = question_mask.long().sum(-1)  # [batch_size]
 
         # 1) Embedding Layer: Embed the passage and question.
-        passage_embeddings = self.embedding(batch['passages'])  # [batch_size, p_len, p_dim]
-        question_embeddings = self.embedding(batch['questions'])  # [batch_size, q_len, q_dim]
+        passage_embeddings = self.embedding(
+            batch["passages"]
+        )  # [batch_size, p_len, p_dim]
+        question_embeddings = self.embedding(
+            batch["questions"]
+        )  # [batch_size, q_len, q_dim]
 
         # 2) Context2Query: Compute weighted sum of question embeddings for
         #        each passage word and concatenate with passage embeddings.
         aligned_scores = self.aligned_att(
             passage_embeddings, question_embeddings, ~question_mask
         )  # [batch_size, p_len, q_len]
-        aligned_embeddings = aligned_scores.bmm(question_embeddings)  # [batch_size, p_len, q_dim]
+        aligned_embeddings = aligned_scores.bmm(
+            question_embeddings
+        )  # [batch_size, p_len, q_dim]
         passage_embeddings = cuda(
-            self.args,
-            torch.cat((passage_embeddings, aligned_embeddings), 2),
+            self.args, torch.cat((passage_embeddings, aligned_embeddings), 2),
         )  # [batch_size, p_len, p_dim + q_dim]
 
         # 3) Passage Encoder
