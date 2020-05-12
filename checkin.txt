@@ -1,0 +1,31 @@
+While reading the original paper published with the dataset,
+https://arxiv.org/abs/1606.05250, I took special interest in the methods and results of
+analysis done by Stanford on the questions. They took fairly simple steps to categorize
+the questions based on type. A specific interest was categorizing nouns into "person,
+location and other entities using NER tags." This falls into the "Linguistic
+Constraints" category. I think it would be interesting to pre-process the data in some
+way. This could be something like using NER or dependency parsing to define relationships between
+words, such as a "quality, property, or version." Perhaps this could be used to determine the named
+entity that a question is asking for and focus the relevant parts of the article before
+selecting a phrase as it currently does.
+
+The suggested library, spaCy, seems particularly useful since it supports both of these
+processing methods. Also, I like their documentation page best so far. The library
+targets beginners and could prove the most likely to generate significant accuracy
+improvement with a minimal amount of time spent buried in documentation and research
+papers. 
+
+One other area that could be useful is focusing on marking questions as unanswerable
+earlier in the process if they don't have any noun phrases in the paragraph. Like, if
+the question is asking for a property of a noun and the paragraph has no phrases with
+properties of nouns.
+
+Refs:
+1st https://arxiv.org/pdf/1606.05250.pdf
+2nd https://arxiv.org/pdf/1806.03822.pdf
+https://rajpurkar.github.io/SQuAD-explorer/
+https://github.com/explosion/spaCy
+https://spacy.io/usage/training#ner
+
+https://www.cs.utexas.edu/~gdurrett/courses/sp2020/fp.pdf
+https://github.com/zachhardesty7/cs378nlp-sp20-fp#using-pre-trained-models

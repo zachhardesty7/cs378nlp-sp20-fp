@@ -39,7 +39,7 @@ from utils import cuda, search_span_endpoints, unpack
 _TQDM_BAR_SIZE = 75
 _TQDM_LEAVE = False
 _TQDM_UNIT = " batches"
-_TQDM_OPTIONS = {"nCols": _TQDM_BAR_SIZE, "leave": _TQDM_LEAVE, "unit": _TQDM_UNIT}
+_TQDM_OPTIONS = {"ncols": _TQDM_BAR_SIZE, "leave": _TQDM_LEAVE, "unit": _TQDM_UNIT}
 
 
 parser = argparse.ArgumentParser()

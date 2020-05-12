@@ -1,0 +1,41 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558 
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "visualize",
+      "type": "shell",
+      "command": "${config:python.pythonPath} visualize.py --path datasets/squad_train.jsonl.gz --samples 1",
+      "problemMatcher": [],
+      "presentation": {
+        "clear": true
+      }
+    },
+    {
+      "label": "evaluate",
+      "type": "shell",
+      "command": "clear; ${config:python.pythonPath} evaluate.py --dataset_path datasets/squad_dev.jsonl.gz --output_path squad_predictions.txt",
+      "presentation": {
+        "clear": true
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "train data",
+      "type": "shell",
+      "command": "${config:python.pythonPath} main.py --use_gpu --model baseline --model_path squad_model2.pt --train_path datasets/squad_train.jsonl.gz --dev_path datasets/squad_dev.jsonl.gz --output_path squad_predictions2.txt --hidden_dim 256 --bidirectional --do_train --do_test --batch_size 32",
+      "presentation": {
+        "clear": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}

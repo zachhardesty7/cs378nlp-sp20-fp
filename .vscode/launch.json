@@ -1,0 +1,38 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: LM Classifier",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/lm_classifier.py",
+      "args": [
+        "--model",
+        "RNN"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Python: LM Model",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/lm.py",
+      "args": [
+        "--model",
+        "RNN"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Python: Test",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/test.py",
+      "args": [],
+      "console": "integratedTerminal"
+    }
+  ]
+}
