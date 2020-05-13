@@ -4,7 +4,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "visualize",
+      "label": "visualize test results",
       "type": "shell",
       "command": "${config:python.pythonPath} visualize.py --path datasets/squad_train.jsonl.gz --samples 1",
       "problemMatcher": [],
@@ -13,9 +13,20 @@
       }
     },
     {
-      "label": "evaluate",
+      "label": "evaluate test results",
       "type": "shell",
-      "command": "clear; ${config:python.pythonPath} evaluate.py --dataset_path datasets/squad_dev.jsonl.gz --output_path squad_predictions.txt",
+      "command": "${config:python.pythonPath} evaluate.py --dataset_path datasets/squad_dev.jsonl.gz --output_path squad_predictions.txt",
+      "presentation": {
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "test model",
+      "type": "shell",
+      // "command": "${config:python.pythonPath} test.py",
+      "command": "${config:python.pythonPath} main.py --use_gpu --model baseline --model_path squad_model.pt --train_path datasets/squad_train.jsonl.gz --dev_path datasets/squad_dev.jsonl.gz --output_path squad_predictions.txt --hidden_dim 128 --bidirectional --do_test --batch_size 32; ${config:python.pythonPath} evaluate.py --dataset_path datasets/squad_dev.jsonl.gz --output_path squad_predictions.txt",
+      // "command": "${config:python.pythonPath} main.py --use_gpu --model baseline --model_path squad_model.pt --train_path datasets/squad_train.jsonl.gz --dev_path datasets/squad_dev.jsonl.gz --output_path squad_predictions.txt --hidden_dim 128 --bidirectional --do_test --batch_size 32",
       "presentation": {
         "clear": true
       },
@@ -27,7 +38,7 @@
     {
       "label": "train data",
       "type": "shell",
-      "command": "${config:python.pythonPath} main.py --use_gpu --model baseline --model_path squad_model2.pt --train_path datasets/squad_train.jsonl.gz --dev_path datasets/squad_dev.jsonl.gz --output_path squad_predictions2.txt --hidden_dim 256 --bidirectional --do_train --do_test --batch_size 32",
+      "command": "${config:python.pythonPath} main.py --use_gpu --model baseline --model_path squad_model.pt --train_path datasets/squad_train.jsonl.gz --dev_path datasets/squad_dev.jsonl.gz --output_path squad_predictions.txt --hidden_dim 256 --bidirectional --do_train --do_test --batch_size 32",
       "presentation": {
         "clear": true
       },

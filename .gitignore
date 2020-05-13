@@ -6,3 +6,4 @@ venv/
 *.pt
 *.jsonl.gz
 glove
+*_squad_preds.txt
