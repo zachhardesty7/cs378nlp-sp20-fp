@@ -35,8 +35,6 @@ from data import QADataset, Tokenizer, Vocabulary
 from model import BaselineReader
 from utils import cuda, search_span_endpoints, unpack
 
-import spacy
-
 _TQDM_BAR_SIZE = 75
 _TQDM_LEAVE = False
 _TQDM_UNIT = " batches"
@@ -394,8 +392,8 @@ def main(args):
         print()
 
     # Set up datasets.
-    train_dataset = QADataset(args, args.train_path)
-    dev_dataset = QADataset(args, args.dev_path)
+    train_dataset = QADataset(args, args.train_path, "samples_train")
+    dev_dataset = QADataset(args, args.dev_path, "samples_dev")
 
     # Create vocabulary and tokenizer.
     vocabulary = Vocabulary(train_dataset.samples, args.vocab_size)
@@ -410,41 +408,6 @@ def main(args):
     print(f"train samples = {len(train_dataset)}")
     print(f"dev samples = {len(dev_dataset)}")
     print()
-
-    # preprocess data w spacy
-    nlp = spacy.load("en_core_web_sm")
-
-    # passage
-    sample_context = dataset.elems[0]["context"]
-    context_doc = nlp(sample_context)
-    for ent in context_doc.ents:
-        print(
-            ent.text,
-            ent.start_char,
-            ent.end_char,
-            ent.label_,
-            spacy.explain(ent.label_),
-        )
-
-    # qs
-    sample_questions = [context_doc]
-    for qas in dataset.elems[0]["qas"]:
-        q = qas["question"]
-        q_doc = nlp(q)
-        sample_questions.append(q_doc)
-
-        print()
-        print(q)
-        for ent in q_doc.ents:
-            print(
-                ent.text,
-                ent.start_char,
-                ent.end_char,
-                ent.label_,
-                spacy.explain(ent.label_),
-            )
-
-    spacy.displacy.serve(sample_questions, style="ent")
 
     # Select model.
     model = _select_model(args)

@@ -267,12 +267,17 @@ class BaselineReader(nn.Module):
             sorted_sequence_lengths,
             restoration_indices,
         ) = _sort_batch_by_length(sequences, sequence_lengths)
+        torch.set_default_tensor_type(torch.FloatTensor)
         # Pack input sequences
         packed_sequence_input = pack_padded_sequence(
             sorted_inputs,
             sorted_sequence_lengths.data.long().tolist(),
             batch_first=True,
         )
+        if torch.cuda.is_available():
+            torch.set_default_tensor_type(torch.cuda.FloatTensor)
+        packed_sequence_input.cuda()
+
         # Run RNN
         packed_sequence_output, _ = rnn(packed_sequence_input, None)
         # Unpack hidden states

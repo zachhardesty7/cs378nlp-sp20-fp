@@ -6,12 +6,18 @@ Author:
 
 import collections
 import itertools
-import torch
-
-from torch.utils.data import Dataset
+import pickle
 from random import shuffle
+
+import spacy
+import torch
+from torch.utils.data import Dataset
+
 from utils import cuda, load_dataset
 
+spacy.require_gpu()
+
+DEBUG = False
 
 PAD_TOKEN = "[PAD]"
 UNK_TOKEN = "[UNK]"
@@ -138,8 +144,10 @@ class QADataset(Dataset):
         batch_size: Int. The number of example in a mini batch.
     """
 
-    def __init__(self, args, path):
+    def __init__(self, args, path, name):
+        self.processor = spacy.load("en_core_web_sm")
         self.args = args
+        self.name = name
         self.meta, self.elems = load_dataset(path)
         self.samples = self._create_samples()
         self.tokenizer = None
@@ -156,16 +164,40 @@ class QADataset(Dataset):
         Returns:
             A list of words (string).
         """
+
+        try:
+            with open(self.name + ".pkl", "rb") as f:
+                print(f"using cached {self.name} from pickle bin")
+                return pickle.load(f)
+        except EnvironmentError:
+            pass
+
         samples = []
-        for elem in self.elems:
-            # Unpack the context paragraph. Shorten to max sequence length.
-            passage = [token.lower() for (token, offset) in elem["context_tokens"]][
-                : self.args.max_context_length
-            ]
+        self.processor.add_pipe(self.processor.create_pipe("sentencizer"))
+        disabled = self.processor.disable_pipes(["tagger", "parser"])
+
+        # batch process entries with spacy
+        contexts = list(self.processor.pipe([elem["context"] for elem in self.elems]))
+        # qas_contexts = list(
+        #     self.processor.pipe(
+        #         qa["question"] for elem in self.elems for qa in elem["qas"]
+        #     )
+        # )
+
+        for (el_i, elem) in enumerate(self.elems):
+            if not el_i % 100:
+                print(f"processing elem {el_i} of {len(self.elems)}")
+
+            # NOTE: spacy - process passage
+            # passage_context = self.processor(elem["context"])
+            passage_context = contexts[el_i]
+            qas_context = list(
+                self.processor.pipe(qa["question"] for qa in elem["qas"])
+            )
 
             # Each passage has several questions associated with it.
             # Additionally, each question has multiple possible answer spans.
-            for qa in elem["qas"]:
+            for (qa_id, qa) in enumerate(elem["qas"]):
                 qid = qa["qid"]
                 question = [token.lower() for (token, offset) in qa["question_tokens"]][
                     : self.args.max_question_length
@@ -176,7 +208,104 @@ class QADataset(Dataset):
                 # is inclusive.
                 answers = qa["detected_answers"]
                 answer_start, answer_end = answers[0]["token_spans"][0]
-                samples.append((qid, passage, question, answer_start, answer_end))
+
+                # NOTE: spacy - begin focussing passage to target area
+                # question_context = self.processor(qa["question"])
+                question_context = qas_context[qa_id]
+
+                # view passage
+                DEBUG and print()
+                DEBUG and print()
+                DEBUG and print(elem["context"])
+
+                # view passage named entities
+                for ent in passage_context.ents:
+                    DEBUG and print(
+                        ent.text,
+                        ent.start_char,
+                        ent.end_char,
+                        ent.label_,
+                        spacy.explain(ent.label_),
+                    )
+
+                # view question named entities
+                DEBUG and print()
+                DEBUG and print(qa["question"])
+                for ent in question_context.ents:
+                    DEBUG and print(
+                        ent.text,
+                        ent.start_char,
+                        ent.end_char,
+                        ent.label_,
+                        spacy.explain(ent.label_),
+                    )
+
+                token_id = 0
+                answer_start_new = answer_start
+                answer_end_new = answer_end
+                matched_sents = []
+
+                # update start & end marks to reflect trimmed passage
+                for sent in passage_context.sents:
+                    # get label of each entity in each q & passage
+                    q_ents = [q_ent.label for q_ent in question_context.ents]
+                    s_ents = [s_ent.label for s_ent in sent.ents]
+
+                    # only keep sentences w overlapping entities w question
+                    if bool(set(q_ents).intersection(s_ents)):
+                        matched_sents.append(sent)
+                    elif token_id < answer_start:
+                        answer_start_new -= len(sent)
+                        answer_end_new -= len(sent)
+                    token_id += len(sent)
+
+                # convert to list of tokens like original passage
+                unique_passage = [
+                    token.text.lower() for sent in matched_sents for token in sent
+                ][: self.args.max_context_length]
+
+                # view original passage & trimmed
+                DEBUG and print(
+                    [token.lower() for (token, offset) in elem["context_tokens"]][
+                        : self.args.max_context_length
+                    ]
+                )
+                DEBUG and print(unique_passage)
+
+                # don't use examples where this process fails
+                if (
+                    answer_start_new > -1
+                    and answer_end_new > -1
+                    and len(unique_passage) > 0
+                ):
+                    samples.append(
+                        (
+                            qid,
+                            unique_passage,
+                            question,
+                            answer_start_new,
+                            answer_end_new,
+                        )
+                    )
+                else:
+                    samples.append(
+                        (
+                            qid,
+                            [
+                                token.lower()
+                                for (token, offset) in elem["context_tokens"]
+                            ][: self.args.max_context_length],
+                            question,
+                            answer_start,
+                            answer_end,
+                        )
+                    )
+
+        disabled.restore()
+
+        # save processed samples
+        with open(self.name + ".pkl", "wb") as f:
+            pickle.dump(samples, f)
 
         return samples
 
