@@ -29,3 +29,11 @@ https://spacy.io/usage/training#ner
 
 https://www.cs.utexas.edu/~gdurrett/courses/sp2020/fp.pdf
 https://github.com/zachhardesty7/cs378nlp-sp20-fp#using-pre-trained-models
+
+help with batching
+https://spacy.io/usage/processing-pipelines
+
+future areas to explore
+sentence level parsing
+ - https://towardsdatascience.com/building-a-question-answering-system-part-1-9388aadff507
+ - https://github.com/facebookresearch/InferSent
